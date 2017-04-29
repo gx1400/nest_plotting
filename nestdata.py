@@ -6,18 +6,12 @@ derek.a.rowland@gmail.com
 
 """
 import sys
-import matplotlib.pyplot as plt
-from mysql.connector import (connection)
-
 import argparse
-from argparse import Namespace
-
-#for config parsing
 import os.path
-import sys
 import configparser
 
-
+import matplotlib.pyplot as plt
+from mysql.connector import (connection)
 
 PROGNAME = "nestplotter.py"
 PROGDESC = "Plot my nest data to pyplot"
@@ -28,15 +22,18 @@ DBUSERNAME = ""
 DBPW = ""
 DBDATABASE = ""
 
-def getArgs():
+
+def getargs():
     """
     get config file path
     """
     parser = argparse.ArgumentParser(prog=PROGNAME, description=PROGDESC)
-    parser.add_argument("-c","--configfile",help="Configuration file path",required=True)
+    parser.add_argument("-c", "--configfile",
+                        help="Configuration file path", required=True)
     return parser.parse_args()
 
-def getfileConfig():
+
+def getfileconfig():
     """
     extract settings from file
     """
@@ -45,28 +42,81 @@ def getfileConfig():
     global DBUSERNAME
     global DBPW
     global DBDATABASE
-    
-    #if (os.path.isfile(args.configfile))
-    fileexists = os.path.isfile(args.configfile)
-    
-    if (not os.path.isfile(args.configfile)):
-        sys.exit("Error: Argument input config file '" + args.configfile + "' does not exist.  Exiting script...")
-        
-    c = configparser.RawConfigParser()
-    c.read(args.configfile)
-    
-    DBADDR = c.get('database', 'address').strip('"')
-    DBPORT = c.get('database', 'port').strip('"')
-    DBUSERNAME = c.get('database', 'username').strip('"')
-    DBPW = c.get('database', 'passwd').strip('"')
-    DBDATABASE = c.get('database', 'database').strip('"')
-    
+
+    if not os.path.isfile(ARGS.configfile):
+        sys.exit("Error: Argument input config file '" +
+                 ARGS.configfile + "' does not exist.  Exiting script...")
+
+    parsed = configparser.RawConfigParser()
+    parsed.read(ARGS.configfile)
+
+    DBADDR = parsed.get('database', 'address').strip('"')
+    DBPORT = parsed.get('database', 'port').strip('"')
+    DBUSERNAME = parsed.get('database', 'username').strip('"')
+    DBPW = parsed.get('database', 'passwd').strip('"')
+    DBDATABASE = parsed.get('database', 'database').strip('"')
+
     print(DBADDR)
     print(DBUSERNAME)
     print(DBPW)
     print(DBPORT)
     print(DBDATABASE)
-    
+
+
+
+
+def extract(results, index):
+    """
+    extract one subset of data
+    """
+    mylist = []
+    indexer = 0
+    for item in results:
+        mylist.append(item[index])
+        indexer += 1
+    return mylist
+
+
+def checkdb():
+    """ Check database connection """
+    cnx = connection.MySQLConnection()
+    try:
+        print("Testing database parameters...")
+        # Open database connection
+        cnx = connection.MySQLConnection(
+            user=DBUSERNAME,
+            password=DBPW,
+            host=DBADDR,
+            port=DBPORT,
+            database=DBDATABASE,
+            connection_timeout=1000)
+
+        # prepare a cursor object using cursor() method
+        cursor = cnx.cursor()
+        cursor.execute("SELECT VERSION()")
+        results = cursor.fetchone()
+        cursor = cnx.close()
+        cnx.close()
+
+        # Check if anything at all is returned
+        if results:
+            print("    DB Version: " + str(results[0]))
+            return True
+        return False
+    except connection.errors.InterfaceError:
+        # print "ERROR IN CONNECTION"
+        return False
+
+
+#############
+# MAIN
+#############
+def main():
+    """
+    Main routine
+    """
+    getfileconfig()
+
     if not checkdb():
         print("Error connecting to DB.... exiting...")
         sys.exit()
@@ -131,63 +181,10 @@ def getfileConfig():
 
     print("Done.")
 
-def extract(results, index):
-    """
-    extract one subset of data
-    """
-    mylist = []
-    indexer = 0
-    for item in results:
-        mylist.append(item[index])
-        indexer += 1
-    return mylist
-
-def checkdb():
-    """ Check database connection """
-    cnx = connection.MySQLConnection()
-    try:
-        print("Testing database parameters...")
-        # Open database connection
-        cnx = connection.MySQLConnection(
-            user=DBUSERNAME,
-            password=DBPW,
-            host=DBADDR,
-            port=DBPORT,
-            database=DBDATABASE,
-            connection_timeout=1000)
-
-        # prepare a cursor object using cursor() method
-        cursor = cnx.cursor()
-        cursor.execute("SELECT VERSION()")
-        results = cursor.fetchone()
-        cursor = cnx.close()
-        cnx.close()
-
-        # Check if anything at all is returned
-        if results:
-            print("    DB Version: " + str(results[0]))
-            return True
-        return False
-    except connection.errors.InterfaceError:
-        #print "ERROR IN CONNECTION"
-        return False
-    
-
-#############
-# MAIN
-#############
-def main(args):
-    """
-    Main routine
-    """
-    getfileConfig()
-    
-    
-
 
 ###########################
 # PROG DECLARE
 ###########################
 if __name__ == '__main__':
-    args = getArgs()
-    main(args)
+    ARGS = getargs()
+    main()
